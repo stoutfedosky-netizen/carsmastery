@@ -1,0 +1,22 @@
+"use client";
+import {useEffect,useMemo,useRef,useState} from "react";
+import {Bookmark,Flag,Eraser} from "lucide-react";
+import {passages} from "../../data/passages";
+const passage=passages[0];
+function fmt(t){const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+export default function Exam(){
+ const ref=useRef(null);const[current,setCurrent]=useState(0);const[answers,setAnswers]=useState({});const[struck,setStruck]=useState({});const[flagged,setFlagged]=useState({});const[submitted,setSubmitted]=useState(false);const[seconds,setSeconds]=useState(0);const[running,setRunning]=useState(true);const q=passage.questions[current];
+ useEffect(()=>{if(!running||submitted)return;const id=setInterval(()=>setSeconds(x=>x+1),1000);return()=>clearInterval(id)},[running,submitted]);
+ const score=useMemo(()=>passage.questions.reduce((sum,x)=>sum+(answers[x.id]===x.answer?1:0),0),[answers]);
+ function highlight(){const sel=window.getSelection();if(!sel||!sel.rangeCount||!sel.toString().trim())return;if(!ref.current?.contains(sel.anchorNode))return;const range=sel.getRangeAt(0);const span=document.createElement("span");span.className="highlighted";try{range.surroundContents(span);sel.removeAllRanges()}catch{alert("Try highlighting a smaller section.")}}
+ function clearH(){ref.current?.querySelectorAll(".highlighted").forEach(s=>s.replaceWith(document.createTextNode(s.textContent)))}
+ function strike(l,e){e.stopPropagation();if(submitted)return;const key=`${q.id}-${l}`;setStruck({...struck,[key]:!struck[key]})}
+ return <div className="exam"><header className="examTop"><div><b>Medical College Admission Test</b> — CARS Mastery</div><div>Time Elapsed: <b>{fmt(seconds)}</b> <button className="navBtn" onClick={()=>setRunning(!running)}>{running?"Pause":"Resume"}</button></div></header>
+ <div className="examTools"><div><button className="toolBtn" onClick={highlight}><span className="yellow"/>Highlight</button><button className="toolBtn">Strikethrough answers with “S”</button><button className="toolBtn" onClick={clearH}><Eraser size={15}/> Clear</button></div><button className="toolBtn" onClick={()=>setFlagged({...flagged,[q.id]:!flagged[q.id]})}><Flag size={15}/> Flag for Review</button></div>
+ <main className="mainExam"><section className="passage" ref={ref}><h2>{passage.title}</h2>{passage.paragraphs.map((p,i)=><p key={i}>{p}</p>)}</section>
+ <section className="question"><div className="qHeader"><h2>Question {q.id}</h2><button className="toolBtn" onClick={()=>setFlagged({...flagged,[q.id]:!flagged[q.id]})}><Bookmark color={flagged[q.id]?"#dc2626":"#0868a8"}/></button></div><p>{q.stem}</p>
+ {Object.entries(q.choices).map(([l,text])=>{const selected=answers[q.id]===l,correct=q.answer===l,key=`${q.id}-${l}`;let cls="choice";if(selected)cls+=" selected";if(submitted&&correct)cls+=" correct";if(submitted&&selected&&!correct)cls+=" incorrect";if(struck[key])cls+=" struck";return <button key={l} className={cls} onClick={()=>!submitted&&setAnswers({...answers,[q.id]:l})}><span className="bubble"/><span><b>{l}.</b> <span className="choiceText">{text}</span>{!submitted&&<span onClick={(e)=>strike(l,e)} style={{marginLeft:12,color:"#075fa8",fontWeight:700}}>S</span>}</span></button>})}
+ {submitted&&<div className="explain"><h3>Explanation</h3><div><p><b>Correct Answer: {q.answer}</b></p><p>{q.explanation}</p>{q.wrong&&<><p><b>Why the others are wrong:</b></p>{Object.entries(q.wrong).map(([k,v])=><p key={k}><b>{k}:</b> {v}</p>)}</>}</div></div>}</section>
+ <aside className="qnavPanel"><h3>Questions</h3><div className="navGrid">{passage.questions.map((x,i)=>{let cls="qBox";if(i===current)cls+=" current";else if(answers[x.id])cls+=" answered";if(flagged[x.id])cls+=" flagged";return <button key={x.id} className={cls} onClick={()=>setCurrent(i)}>{x.id}</button>})}</div><p><small>Blue = current<br/>Green = answered<br/>Yellow outline = flagged</small></p></aside></main>
+ <footer className="examBottom"><button className="endBtn" onClick={()=>{setSubmitted(true);setRunning(false)}}>End Section</button><div>{Object.keys(answers).length} of {passage.questions.length} answered {submitted&&<> | Score: {score}/{passage.questions.length}</>}</div><div><button className="navBtn" onClick={()=>setCurrent(Math.max(0,current-1))}>← Previous</button> <button className="navBtn" onClick={()=>setCurrent(Math.min(passage.questions.length-1,current+1))}>Next →</button></div></footer></div>
+}
