@@ -1,0 +1,13 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { examPassages, allQuestions } from "../data/passages";
+import { supabase, supabaseConfigured } from "../lib/supabaseClient";
+
+export default function Dashboard(){
+  const [user,setUser]=useState(null);
+  const [attempts,setAttempts]=useState([]);
+  useEffect(()=>{async function load(){if(!supabaseConfigured)return;const {data:{user}}=await supabase.auth.getUser();setUser(user);if(user){const {data}=await supabase.from("attempts").select("*").order("created_at",{ascending:false}).limit(5);setAttempts(data||[])}}load()},[]);
+  async function logout(){if(supabase)await supabase.auth.signOut();window.location.reload();}
+  return <div className="shell"><header className="top"><div>CARS Mastery V5</div><nav className="topNav"><Link href="/pricing">Pricing</Link><Link href="/admin">Admin</Link><Link href="/account">Account</Link>{user?<button className="navBtn" onClick={logout}>Log out</button>:<Link href="/login">Log in</Link>}</nav></header><main className="dashboard">{!supabaseConfigured&&<section className="card" style={{marginBottom:16}}><b>Demo Mode</b><p className="muted">Supabase env vars are not set yet. Login and saved attempts are disabled until configured.</p></section>}<section className="hero"><h1>{user?"Welcome back.":"Build your CARS edge."}</h1><p>V5 includes auth-ready saved attempts, admin content tools, and subscription-ready premium structure.</p><div className="actions"><Link className="primary" href="/exam">Start Exam</Link><Link className="secondary" href="/analytics">View Analytics</Link><Link className="secondary" href="/pricing">See Plans</Link>{!user&&<Link className="secondary" href="/signup">Create Account</Link>}</div></section><section className="cards"><div className="card"><b>{examPassages.length}</b><p>Passages loaded</p></div><div className="card"><b>{allQuestions.length}</b><p>Questions loaded</p></div><div className="card"><b>{attempts.length}</b><p>Saved attempts</p></div><div className="card"><b>V5</b><p>Paywall-ready</p></div></section><section className="card"><h2>Recent Attempts</h2>{attempts.length===0?<p className="muted">No saved attempts yet. Finish an exam while logged in to save your score.</p>:<table className="statsTable"><thead><tr><th>Date</th><th>Score</th><th>Accuracy</th><th>Time</th></tr></thead><tbody>{attempts.map(a=><tr key={a.id}><td>{new Date(a.created_at).toLocaleDateString()}</td><td>{a.score}/{a.total_questions}</td><td>{Math.round(a.accuracy)}%</td><td>{Math.floor(a.time_elapsed/60)} min</td></tr>)}</tbody></table>}</section></main></div>
+}
